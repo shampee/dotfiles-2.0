@@ -11,6 +11,7 @@ import XMonad.Layout.Fullscreen
     ( fullscreenEventHook, fullscreenManageHook, fullscreenSupport, fullscreenFull )
 import Data.Monoid ()
 import System.Exit ()
+import XMonad.Util.Scratchpad
 import XMonad.Util.SpawnOnce ( spawnOnce )
 import Graphics.X11.ExtraTypes.XF86 (xF86XK_AudioLowerVolume, xF86XK_AudioRaiseVolume, xF86XK_AudioMute, xF86XK_MonBrightnessDown, xF86XK_MonBrightnessUp, xF86XK_AudioPlay, xF86XK_AudioPrev, xF86XK_AudioNext)
 import XMonad.Hooks.EwmhDesktops ( ewmh )
@@ -32,7 +33,7 @@ import Data.Maybe (maybeToList)
 -- The preferred terminal program, which is used in a binding below and by
 -- certain contrib modules.
 --
-myTerminal      = "alacritty"
+myTerminal = "term"
 
 -- Whether focus follows the mouse pointer.
 myFocusFollowsMouse :: Bool
@@ -75,7 +76,7 @@ addNETSupported x   = withDisplay $ \dpy -> do
     a_NET_SUPPORTED <- getAtom "_NET_SUPPORTED"
     a               <- getAtom "ATOM"
     liftIO $ do
-       sup <- (join . maybeToList) <$> getWindowProperty32 dpy a_NET_SUPPORTED r
+       sup <- join . maybeToList <$> getWindowProperty32 dpy a_NET_SUPPORTED r
        when (fromIntegral x `notElem` sup) $
          changeProperty32 dpy r a_NET_SUPPORTED a propModeAppend [fromIntegral x]
 
@@ -88,7 +89,7 @@ addEWMHFullscreen   = do
 ------------------------------------------------------------------------
 -- Key bindings. Add, modify or remove key bindings here.
 --
-clipboardy :: MonadIO m => m () -- Don't question it 
+clipboardy :: MonadIO m => m () -- Don't question it
 clipboardy = spawn "rofi -modi \"\63053 :greenclip print\" -show \"\63053 \" -run-command '{cmd}' -theme ~/.config/rofi/launcher/style.rasi"
 
 centerlaunch = spawn "exec ~/bin/eww open-many blur_full weather profile quote search_full disturb-icon vpn-icon home_dir screenshot power_full reboot_full lock_full logout_full suspend_full"
@@ -96,10 +97,10 @@ sidebarlaunch = spawn "exec ~/bin/eww open-many weather_side time_side smol_cale
 ewwclose = spawn "exec ~/bin/eww close-all"
 maimcopy = spawn "maim -s | xclip -selection clipboard -t image/png && notify-send \"Screenshot\" \"Copied to Clipboard\" -i flameshot"
 maimsave = spawn "maim -s ~/Desktop/$(date +%Y-%m-%d_%H-%M-%S).png && notify-send \"Screenshot\" \"Saved to Desktop\" -i flameshot"
-rofi_launcher = spawn "rofi -no-lazy-grab -show drun -modi run,drun,window -theme $HOME/.config/rofi/launcher/style -drun-icon-theme \"candy-icons\" "
+rofiLauncher = spawn "rofi -no-lazy-grab -show drun -modi run,drun,window -theme $HOME/.config/rofi/launcher/style -drun-icon-theme \"candy-icons\" "
 
 
-myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
+myKeys conf@XConfig {XMonad.modMask = modm} = M.fromList $
 
     -- launch a terminal
     [ ((modm .|. shiftMask, xK_Return), spawn $ XMonad.terminal conf)
@@ -108,9 +109,9 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm,               xK_F1    ), spawn "betterlockscreen -l")
 
     -- launch rofi and dashboard
-    , ((modm,               xK_o     ), rofi_launcher)
-    , ((modm,               xK_p     ), centerlaunch)
-    , ((modm .|. shiftMask, xK_p     ), ewwclose)
+    , ((modm,               xK_p     ), rofiLauncher)
+    , ((modm,               xK_o     ), centerlaunch)
+    , ((modm .|. shiftMask, xK_o     ), ewwclose)
 
     -- launch eww sidebar
     , ((modm,               xK_s     ), sidebarlaunch)
@@ -120,14 +121,14 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((0,                    xF86XK_AudioPlay), spawn "playerctl play-pause")
     , ((0,                    xF86XK_AudioPrev), spawn "playerctl previous")
     , ((0,                    xF86XK_AudioNext), spawn "playerctl next")
-    , ((0,                    xF86XK_AudioRaiseVolume), spawn "pactl set-sink-volume 0 +5%")
-    , ((0,                    xF86XK_AudioLowerVolume), spawn "pactl set-sink-volume 0 -5%")
-    , ((0,                    xF86XK_AudioMute), spawn "pactl set-sink-mute 0 toggle")
+    , ((0,                    xF86XK_AudioRaiseVolume), spawn "pactl set-sink-volume 2 +5%")
+    , ((0,                    xF86XK_AudioLowerVolume), spawn "pactl set-sink-volume 2 -5%")
+    , ((0,                    xF86XK_AudioMute), spawn "pactl set-sink-mute 2 toggle")
 
     -- Brightness keys
     , ((0,                    xF86XK_MonBrightnessUp), spawn "brightnessctl s +10%")
     , ((0,                    xF86XK_MonBrightnessDown), spawn "brightnessctl s 10-%")
- 
+
     -- Screenshot
     , ((0,                    xK_Print), maimcopy)
     , ((modm,                 xK_Print), maimsave)
@@ -144,15 +145,15 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm .|. shiftMask, xK_c     ), kill)
 
     -- GAPS!!!
-    , ((modm .|. controlMask, xK_g), sendMessage $ ToggleGaps)               -- toggle all gaps
-    , ((modm .|. shiftMask, xK_g), sendMessage $ setGaps [(L,30), (R,30), (U,40), (D,60)]) -- reset the GapSpec
-    
+    , ((modm .|. controlMask, xK_g), sendMessage ToggleGaps)               -- toggle all gaps
+    , ((modm .|. shiftMask, xK_g),   sendMessage $ setGaps [(L,30), (R,30), (U,30), (D,45)]) -- reset the GapSpec
+
     , ((modm .|. controlMask, xK_t), sendMessage $ IncGap 10 L)              -- increment the left-hand gap
     , ((modm .|. shiftMask, xK_t     ), sendMessage $ DecGap 10 L)           -- decrement the left-hand gap
-    
+
     , ((modm .|. controlMask, xK_y), sendMessage $ IncGap 10 U)              -- increment the top gap
     , ((modm .|. shiftMask, xK_y     ), sendMessage $ DecGap 10 U)           -- decrement the top gap
-    
+
     , ((modm .|. controlMask, xK_u), sendMessage $ IncGap 10 D)              -- increment the bottom gap
     , ((modm .|. shiftMask, xK_u     ), sendMessage $ DecGap 10 D)           -- decrement the bottom gap
 
@@ -164,6 +165,8 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
 
     --  Reset the layouts on the current workspace to default
     , ((modm .|. shiftMask, xK_space ), setLayout $ XMonad.layoutHook conf)
+    , ((mod1Mask , xK_space), scratchpadSpawnActionCustom "kitty -T=scratchpad --class=scratchpad")
+    -- , ((modm .|. controlMask , xK_space), scratchpadSpawnActionCustom "st -w '' -t 'scratchpad' -c 'scratchpad'")
 
     -- Resize viewed windows to the correct size
     , ((modm,               xK_n     ), refresh)
@@ -217,7 +220,7 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm              , xK_q     ), spawn "xmonad --recompile; xmonad --restart")
 
     -- Run xmessage with a summary of the default keybindings (useful for beginners)
-    , ((modm .|. shiftMask, xK_slash ), spawn ("echo \"" ++ help ++ "\" | xmessage -file -"))
+    , ((modm .|. shiftMask, xK_h ), spawn ("echo \"" ++ help ++ "\" | xmessage -file -"))
     ]
     ++
 
@@ -242,18 +245,18 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
 ------------------------------------------------------------------------
 -- Mouse bindings: default actions bound to mouse events
 --
-myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
+myMouseBindings XConfig {XMonad.modMask = modm} = M.fromList
 
     -- mod-button1, Set the window to floating mode and move by dragging
-    [ ((modm, button1), (\w -> focus w >> mouseMoveWindow w
-                                       >> windows W.shiftMaster))
+    [ ((modm, button1), \w -> focus w >> mouseMoveWindow w
+                                       >> windows W.shiftMaster)
 
     -- mod-button2, Raise the window to the top of the stack
-    , ((modm, button2), (\w -> focus w >> windows W.shiftMaster))
+    , ((modm, button2), \w -> focus w >> windows W.shiftMaster)
 
     -- mod-button3, Set the window to floating mode and resize by dragging
-    , ((modm, button3), (\w -> focus w >> mouseResizeWindow w
-                                       >> windows W.shiftMaster))
+    , ((modm, button3), \w -> focus w >> mouseResizeWindow w
+                                       >> windows W.shiftMaster)
 
     -- you may also bind events to the mouse scroll wheel (button4 and button5)
     ]
@@ -300,11 +303,19 @@ myLayout = avoidStruts(tiled ||| Mirror tiled ||| Full)
 --
 myManageHook = fullscreenManageHook <+> manageDocks <+> composeAll
     [ className =? "MPlayer"        --> doFloat
+    , className =? "mpv"            --> doFullFloat
     , className =? "Gimp"           --> doFloat
+    , className =? "electrum"       --> doFloat
+    , className  =? "Tor Browser"   --> doFloat
+    , className  =? "Xmessage"      --> doFloat
+    , className  =? "scratchpad"    --> doF (W.swapMaster >> W.swapMaster) <+> doFloat
+    , className  =? "feh"           --> doFloat
+    , className  =? "mpv"           --> doF W.swapMaster <+> doFloat
+    , className  =? "Pavucontrol"   --> doFloat
     , resource  =? "desktop_window" --> doIgnore
     , resource  =? "kdesktop"       --> doIgnore
     , isFullscreen --> doFullFloat
-                                 ]
+    ]
 
 ------------------------------------------------------------------------
 -- Event handling
@@ -339,8 +350,8 @@ myStartupHook = do
   spawnOnce "exec ~/bin/eww daemon"
   spawn "xsetroot -cursor_name left_ptr"
   spawn "exec ~/bin/lock.sh"
-  spawnOnce "feh --bg-scale ~/wallpapers/yosemite-lowpoly.jpg"
-  spawnOnce "picom --experimental-backends"
+  -- spawnOnce "feh --bg-scale ~/wallpapers/yosemite-lowpoly.jpg"
+  spawnOnce "picom"
   spawnOnce "greenclip daemon"
   spawnOnce "dunst"
 
@@ -373,8 +384,8 @@ defaults = def {
         mouseBindings      = myMouseBindings,
 
       -- hooks, layouts
-        manageHook = myManageHook, 
-        layoutHook = gaps [(L,30), (R,30), (U,40), (D,60)] $ spacingRaw True (Border 10 10 10 10) True (Border 10 10 10 10) True $ smartBorders $ myLayout,
+        manageHook = myManageHook,
+        layoutHook = gaps [(L,30), (R,30), (U,30), (D,45)] $ spacingRaw True (Border 10 10 10 10) True (Border 10 10 10 10) True $ smartBorders myLayout,
         handleEventHook    = myEventHook,
         logHook            = myLogHook,
         startupHook        = myStartupHook >> addEWMHFullscreen
